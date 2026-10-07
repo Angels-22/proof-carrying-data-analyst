@@ -1,0 +1,6 @@
+customer_id,customer_name,country,segment
+C001,Apex Global Corp,United States,Enterprise
+C002,BlueWave Innovations,United States,SMB
+C003,Crestline Logistics,Canada,Enterprise
+C004,Delta Tech Labs,United States,SMB
+C005,Echo Media Group,United Kingdom,Enterprise

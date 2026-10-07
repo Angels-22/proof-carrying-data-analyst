@@ -1,477 +1,247 @@
-# HNX26PSI08: Proof-Carrying Data Analyst (Agentic GenAI)
-Agentic GenAI · Data Analytics · Code Generation · Verification
-
-Team Name: LogicLoom
-
-Team Members: Manisha R - URK24CS1127, Angel S - URK24CS1143, Atisaya S - URK24CS1105.
+# VerifyAI — Verification-First Data Analyst
 
 > **"Don't blindly trust an AI-generated number. Verify the computation. Expose the assumptions. Refuse when evidence is insufficient."**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-FF4B4B.svg)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/Tests-22%2F22%20Passing-brightgreen.svg)]()
-
-**Live demo / recorded demo:** `<add link here>`
-**Repository:** `<add public Git URL here>`
+[![Tests Passed](https://img.shields.io/badge/Tests-22%2F22%20Passing-brightgreen.svg)]()
 
 ---
 
-## Table of Contents
+## 📌 Problem Statement
 
-1. [What the Project Does](#1-what-the-project-does)
-2. [Why It Matters (Problem Statement)](#2-why-it-matters-problem-statement)
-3. [Technologies, Libraries & Models Used](#3-technologies-libraries--models-used)
-4. [Data Pipeline](#4-data-pipeline)
-5. [Core Reasoning & Verification Logic](#5-core-reasoning--verification-logic)
-6. [Installation](#6-installation)
-7. [Configuration](#7-configuration)
-8. [Running the System End-to-End](#8-running-the-system-end-to-end)
-9. [Reproducing the Demonstrated Results](#9-reproducing-the-demonstrated-results)
-10. [Sample Input & Output](#10-sample-input--output)
-11. [Evidence & Explanation](#11-evidence--explanation)
-12. [Testing](#12-testing)
-13. [Scope Note: MVP vs Stretch Goals](#13-scope-note-mvp-vs-stretch-goals)
-14. [Repository Structure](#14-repository-structure)
-15. [Security & Sandboxing](#15-security--sandboxing)
-16. [Limitations & Responsible Disclosure](#16-limitations--responsible-disclosure)
-17. [License](#17-license)
+Every modern organization is experimenting with generative AI data analysts. However, high-stakes business and financial decisions suffer from a critical vulnerability:
+- **Hallucinated Numbers**: LLMs frequently generate plausible-sounding but fabricated figures.
+- **Silent Assumptions**: Missing months or ambiguous column names are quietly filled with guesswork.
+- **Incompatible Units & Currencies**: Adding numbers across USD and INR or kilograms and litres without warning.
+- **Zero Reproducibility**: No way to verify whether an AI-generated number can be independently recomputed from raw data.
 
 ---
 
-## 1. What the Project Does
+## 💡 The VerifyAI Solution
 
-**The Proof-Carrying Data Analyst is a verification-first, agentic GenAI data analyst.** You upload a CSV or Excel file, ask a business question in plain English, and receive a numeric answer **together with the evidence needed to independently verify it**.
+**VerifyAI is a verification-first data analytics platform.** 
 
-For every question, the system:
+Every numeric answer presented to the user is backed by executable Python/Pandas code that has been:
+1. Checked against factual dataset profiles before planning.
+2. Intercepted for fatal data traps (missing timeframes, conflicting sources, mismatched units).
+3. Executed in an isolated subprocess.
+4. **Re-executed in a brand-new, freshly spawned subprocess.**
+5. Mathematically compared for reproducibility (`1e-9` absolute tolerance, `1e-6` relative tolerance).
+6. Scrutinized against domain sanity checks.
+7. Refused constructively whenever data is insufficient.
 
-1. **Profiles** the dataset deterministically (no LLM guesses row counts, types, or date ranges).
-2. **Checks for data traps** before any computation: missing time periods, missing columns, currency conflicts (USD + INR), unit conflicts (kg + litres), and contradictory sources.
-3. **Plans** the query into a structured, inspectable plan.
-4. **Generates** sandboxed Pandas code.
-5. **Executes the code twice**, in two separate, freshly spawned subprocesses.
-6. **Compares** both results using strict equality for exact types and numeric tolerances for floats.
-7. **Sanity-checks** the result (NaN/Inf, negative or zero totals, empty filters).
-8. **Returns** one of three verdicts and logs everything to a SQLite ledger:
-
-| Verdict | Meaning |
-|---|---|
-| `ANSWERED` | Result computed and verified with no caveats. |
-| `ANSWERED_WITH_ASSUMPTIONS` | Result verified, but assumptions are shown explicitly (e.g. duplicates, calendar vs fiscal months). |
-| `REFUSED` | Data is insufficient or conflicting. The system explains why and what is needed instead of guessing. |
-
-> **Positioning:** The verifier checks *reproducibility and internal consistency*. The system exposes assumptions and refuses when the available data cannot support an answer. It does not claim that the user asked the right business question.
+> **Positioning:** Verification-first data analytics. Every answer ships with re-executable evidence that can be independently verified. The verifier checks reproducibility and internal consistency, while the system exposes assumptions and refuses when the available data is insufficient.
 
 ---
 
-## 2. Why It Matters (Problem Statement)
-
-Organizations are adopting generative-AI analysts, but high-stakes decisions suffer from four recurring failures:
-
-- **Hallucinated numbers:** LLMs produce plausible but fabricated figures.
-- **Silent assumptions:** Missing months or ambiguous columns are quietly papered over.
-- **Incompatible units and currencies:** USD and INR (or kg and litres) get added together without warning.
-- **No reproducibility:** There is no way to confirm a number can be recomputed from the raw data.
-
-This project addresses each one directly: numbers come from executed code (not model text), assumptions are surfaced, incompatible aggregations are refused, and every answer ships with re-executable evidence.
-
----
-
-## 3. Technologies, Libraries & Models Used
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| Language | Python 3.10+ | Entire codebase |
-| Data processing | **Pandas**, **NumPy** | Deterministic profiling and query execution |
-| Excel support | **openpyxl** | Reading `.xlsx` uploads |
-| UI | **Streamlit** (1.35+) | Executive dashboard |
-| Persistence | **SQLite** (`sqlite3`) | Verification ledger (local `.db` file) |
-| Schemas | **Pydantic** | Typed models for plans, results, and ledger rows |
-| Sandboxing | `subprocess`, `ast` (stdlib) | Isolated execution and static code screening |
-| Testing | `unittest` (stdlib) | Unit and adversarial tests |
-| LLM (optional) | **OpenAI API** (model name set via `.env`) | Natural-language → structured query plan |
-| LLM fallback | **Embedded deterministic semantic planner** (`llm/client.py`) | Runs the full system with **no API key** |
-
-> **Important:** The LLM is used *only* for translating a question into a structured plan. It is never trusted to compute, count, or state a number. All numbers originate from executed Pandas code.
-
-Install exact versions from `requirements.txt`.
-
----
-
-## 4. Data Pipeline
-
-This section shows how input data is **collected → processed → passed through the system**.
+## 🏗️ Architecture & Pipeline Flow
 
 ```mermaid
 graph LR
-    Upload[1. Upload CSV / Excel] --> Load[2. Resilient File Loader]
-    Load --> Profile[3. Deterministic Profiler]
-    Profile --> Trap[4. Trap & Refusal Engine]
-    Question[User Question] --> Plan[5. Query Planner]
+    Upload[Upload CSV / Excel] --> Profile[Deterministic Profiler]
+    Profile --> Trap[Trap & Refusal Engine]
+    Question[User Question] --> Plan[Query Planner]
     Trap --> Plan
-    Plan --> CodeGen[6. Sandboxed Code Generator]
-    CodeGen --> Exec1[7a. Subprocess Run 1]
-    CodeGen --> Exec2[7b. Fresh Subprocess Run 2]
-    Exec1 --> Compare[8. Result Comparator]
+    Plan --> CodeGen[Sandboxed Code Generator]
+    CodeGen --> Exec1[Subprocess Run 1]
+    CodeGen --> Exec2[Fresh Subprocess Run 2]
+    Exec1 --> Compare[Result Comparator]
     Exec2 --> Compare
-    Compare --> Sanity[9. Sanity Checks]
-    Sanity --> Ledger[(10. SQLite Ledger)]
-    Sanity --> UI[11. Executive UI + Evidence]
-```
-
-| Stage | Module | What happens |
-|---|---|---|
-| 1–2. Collect | `utils/file_loader.py` | Uploaded CSV/Excel is read with resilient encoding and delimiter handling and saved to `data/uploads/`. |
-| 3. Profile | `profiler/` | Pure-Pandas extraction of schema, types, null rates, duplicate rows, date span and missing months, currencies (ISO codes, `$`, `₹`, `€`), physical units, and foreign keys. |
-| 4. Trap check | `traps/` | Compares the question against the profile. Detects temporal gaps, missing columns, currency/unit conflicts, ambiguity (calendar vs fiscal), and cross-table contradictions. Fatal traps short-circuit to a structured refusal. |
-| 5. Plan | `analyst/planner.py`, `llm/client.py` | Converts the question into a structured plan (metric, aggregation, filters, group-by). OpenAI if configured, otherwise the local deterministic planner. |
-| 6. Generate | `analyst/code_generator.py` | Emits Pandas code from the plan. Code is statically screened (AST) for forbidden modules. |
-| 7. Execute twice | `verifier/executor.py` | Runs the code in two independent subprocesses with scrubbed environment variables and a 10-second timeout. |
-| 8. Compare | `verifier/result_comparator.py` | Exact match for ints, strings, and keys; `1e-9` absolute / `1e-6` relative tolerance for floats. |
-| 9. Sanity | `verifier/sanity_checks.py` | Flags NaN/Inf, unexpected negatives, zero results from empty filters. |
-| 10. Persist | `database/db.py` | Stores question, plan, code, both execution results, and verdict in the SQLite ledger. |
-| 11. Present | `analyst/response_parser.py`, `app.py` | Packages the answer, verdict, assumptions, and re-executable code for display. |
-
----
-
-## 5. Core Reasoning & Verification Logic
-
-The central idea is that **an answer is only as trustworthy as its evidence**. The system implements this as six layered guarantees:
-
-1. **Deterministic profiling:** Facts about the data (row count, date range, units) come from code, never from a model.
-2. **Pre-flight trap interception:** The system refuses *before* computing when the data cannot support the question (e.g. asking for August revenue when August is absent).
-3. **Dual-subprocess verification:** Two clean processes run the identical generated code. Agreement proves the result is reproducible and not dependent on hidden state.
-4. **Tolerance-aware comparison:** Floats are compared with explicit tolerances, avoiding traps like `0.1 + 0.2 != 0.3`.
-5. **Sanity checks:** Domain-level checks catch results that are reproducible but implausible.
-6. **Constructive refusal:** When data is insufficient, the system returns a 3-part explanation instead of a guess.
-
-Core logic lives in `core.py` (orchestrator), `traps/trap_detector.py`, and `verifier/verifier.py`.
-
----
-
-## 6. Installation
-
-### Prerequisites
-- Python **3.10 or newer**
-- `pip`
-- Git
-
-### Steps
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
-
-# 2. (Recommended) create a virtual environment
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
+    Compare --> Sanity[Sanity Checks]
+    Sanity --> Ledger[(SQLite Ledger)]
+    Sanity --> UI[Executive UI]
 ```
 
 ---
 
-## 7. Configuration
+## ⚙️ Key Technical Innovations
 
-The system works **out of the box with no configuration**.
-
-To optionally enable the OpenAI-backed planner:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env`:
-
-```env
-OPENAI_API_KEY=your_key_here
-```
-
-| Mode | Condition | Behavior |
-|---|---|---|
-| **Local Deterministic Mode** | No `OPENAI_API_KEY` set | Embedded semantic planner; fully offline, fully reproducible. |
-| **LLM-Assisted Mode** | `OPENAI_API_KEY` set | OpenAI plans the query; all computation and verification are still performed by the local pipeline. |
-
-> API keys and secrets are scrubbed from the environment before any generated code runs.
+1. **Deterministic Data Profiler (`profiler/`)**:
+   No LLM is ever used to count rows or guess column types. Pure Pandas profiling extracts schemas, duplicate rates, date spans, currencies, physical units, and foreign keys deterministically.
+2. **Pre-Flight Trap & Refusal Engine (`traps/`)**:
+   Catches temporal gaps (e.g., asking for August revenue when August is missing from the records), currency conflicts (USD + INR), unit mismatches (kg + litres), and contradictory sources.
+3. **Dual-Subprocess Verification Protocol (`verifier/`)**:
+   Spawns two completely separate, clean subprocesses with scrubbed environment secrets to prove execution reproducibility.
+4. **Mathematical Tolerance Comparator (`verifier/result_comparator.py`)**:
+   Enforces exact comparison on integers, strings, and keys, while applying floating-point tolerances (`1e-9` abs, `1e-6` rel) to avoid floating-point equality traps (`0.1 + 0.2 != 0.3`).
+5. **Persistent SQLite Verification Ledger (`database/`)**:
+   Stores every question, intermediate plan, generated code, dual-execution results, and verification verdict in `verifyai.db`.
+6. **Zero-Configuration Fallback Mode (`llm/client.py`)**:
+   Fully runnable out-of-the-box even without an OpenAI API key using an embedded deterministic semantic planner.
 
 ---
 
-## 8. Running the System End-to-End
-
-```bash
-# Step 1: generate the demo datasets
-python data/demo/create_demo_data.py
-
-# Step 2: launch the application
-streamlit run app.py
-```
-
-Open **http://localhost:8501**, then:
-
-1. Upload a dataset (or pick one generated in `data/demo/`).
-2. Review the **profile** (schema, date range, duplicates, currencies, units).
-3. Ask a question, for example *"What is the total revenue?"*
-4. Inspect the **verdict**, **assumptions**, **dual-execution evidence**, and **generated code**.
-5. Ask *"What was the total revenue in August?"* to see a constructive refusal.
-
----
-
-## 9. Reproducing the Demonstrated Results
-
-Anyone can reproduce the demo from a clean clone:
-
-```bash
-git clone https://github.com/<your-username>/<repo-name>.git && cd <repo-name>
-pip install -r requirements.txt
-python data/demo/create_demo_data.py
-python -m unittest discover tests          # reproduces all 22 verified scenarios
-streamlit run app.py                       # reproduces the interactive demo
-```
-
-The 20 adversarial scenarios in the table below are the same ones executed in the live demo. Each is encoded in `tests/adversarial_tests.py`, and the expected verdicts are asserted automatically.
-
-| # | Scenario | Query | Expected Verdict |
-|---|---|---|---|
-| 1 | Simple total | "What is the total revenue?" | `ANSWERED` |
-| 2 | Average | "What is the average order quantity?" | `ANSWERED` |
-| 3 | Maximum | "What is the maximum revenue in a single transaction?" | `ANSWERED` |
-| 4 | Minimum | "What is the minimum unit price?" | `ANSWERED` |
-| 5 | Group-by | "Which region generated the most revenue?" | `ANSWERED` |
-| 6 | Sorting | "Sort regions by total sales volume" | `ANSWERED` |
-| 7 | Date filter | "What was the total revenue in February?" | `ANSWERED_WITH_ASSUMPTIONS` |
-| 8 | Trend / MoM | "What was the revenue trend between January and February?" | `ANSWERED_WITH_ASSUMPTIONS` |
-| 9 | **Missing month** | "What was the total revenue in August?" | `REFUSED` |
-| 10 | **Missing column** | "What is the customer satisfaction score (CSAT)?" | `REFUSED` |
-| 11 | Duplicate handling | "What is the total revenue?" | `ANSWERED_WITH_ASSUMPTIONS` (duplicates flagged) |
-| 12 | **Currency mismatch** | "What is combined revenue across USD and INR?" | `REFUSED` |
-| 13 | **Unit mismatch** | "What is combined total of kg and litres?" | `REFUSED` |
-| 14 | Ambiguous date | "Show revenue for February" | `ANSWERED_WITH_ASSUMPTIONS` |
-| 15 | **Contradictory sources** | Conflicting revenue tables, no authoritative source | `REFUSED` |
-| 16 | Empty filter | Filter returning zero rows | Sanity warning (0.0) |
-| 17 | Nonexistent product | Filter on a non-existent product ID | Sanity warning (0.0) |
-| 18 | Multi-table join | "Which product category generated the highest revenue?" | `ANSWERED` (joined on `product_id`) |
-| 19 | Multi-step query | "Which customer purchased the most in North America?" | `ANSWERED_WITH_ASSUMPTIONS` |
-| 20 | **Impossible query** | "What will Google's stock price be tomorrow?" | `REFUSED` |
-
----
-
-## 10. Sample Input & Output
-
-### Example A: Answered with verified evidence
-
-**Input**
-
-| | |
-|---|---|
-| Dataset | `data/demo/sales.csv` |
-| Question | `What is the total revenue?` |
-
-**Output** *(representative; exact values depend on the generated demo data)*
+## 📁 Repository Structure
 
 ```text
-VERDICT: ANSWERED_WITH_ASSUMPTIONS
-
-Answer: Total revenue = <value computed from sales.csv>
-
-Assumptions:
-  - N exact duplicate rows were detected; they were included/excluded as stated in the plan.
-
-Verification:
-  Run 1 (subprocess A): <value>
-  Run 2 (fresh subprocess B): <value>
-  Comparator: MATCH (abs tol 1e-9, rel tol 1e-6)
-  Sanity checks: PASSED
-
-Generated code:
-  result = df["revenue"].sum()
-```
-
-### Example B: Constructive refusal
-
-**Input**
-
-| | |
-|---|---|
-| Dataset | `data/demo/sales.csv` |
-| Question | `What was the total revenue in August?` |
-
-**Output**
-
-```text
-REFUSED
-
-Reason: August data is not present in the uploaded dataset 'sales.csv'.
-        Available range is 2025-01-05 to 2025-11-26.
-
-Data issue: Temporal gap: Month August missing from date column 'date'.
-
-What would be needed: Provide dataset records for August to compute
-                      metrics for this period.
-```
-
-Every refusal follows this **3-part structure**: *Reason → Data issue → What would be needed*.
-
----
-
-## 11. Evidence & Explanation
-
-Every answer exposes the following, visible in the UI and stored permanently in the ledger:
-
-| Evidence | Where to find it |
-|---|---|
-| Dataset profile (types, nulls, duplicates, date span, units, currencies) | Profile panel / `profiler/` |
-| Intermediate structured query plan | Plan panel / `analyst/planner.py` |
-| Exact generated Pandas code | Code panel (re-executable by anyone) |
-| Results of both subprocess executions | Verification panel |
-| Comparator verdict and tolerances applied | Verification panel |
-| Sanity-check results | Verification panel |
-| Timestamped record of the full run | SQLite ledger (schema in `database/schema.sql`) |
-
-To audit past runs:
-
-```bash
-sqlite3 <ledger-file>.db "SELECT * FROM <table> ORDER BY rowid DESC LIMIT 5;"
-```
-*(Use the ledger filename and table names defined in `database/db.py` and `database/schema.sql`.)*
-
----
-
-## 12. Testing
-
-```bash
-python -m unittest discover tests
-```
-
-| File | Covers |
-|---|---|
-| `tests/test_profiler.py` | Schema, duplicate, missing, date, currency, unit, relationship detectors |
-| `tests/test_verifier.py` | Dual-process execution, comparator, sanity checks |
-| `tests/test_traps.py` | Trap detection and ambiguity handling |
-| `tests/test_refusal.py` | Structured 3-part refusal payloads |
-| `tests/adversarial_tests.py` | 20 end-to-end adversarial scenarios (table in Section 9) |
-
----
-
-## 13. Scope Note: MVP vs Stretch Goals
-
-### ✅ Minimum Viable Solution (implemented and demonstrated)
-- CSV/Excel upload and deterministic profiling
-- Pre-flight trap detection (missing month, missing column, currency/unit mismatch)
-- Structured query planning with a local deterministic planner (no API key needed)
-- Sandboxed Pandas code generation and **dual-subprocess execution**
-- Tolerance-aware result comparison and sanity checks
-- Three-verdict output with structured 3-part refusals
-- SQLite verification ledger
-- Streamlit dashboard
-- 22 passing tests, including 20 adversarial scenarios
-
-### 🚀 Stretch Goals (attempted / additional)
-- Optional OpenAI-backed planner with automatic fallback to local mode
-- Multi-table joins via detected foreign keys
-- Cross-table contradiction detection
-- Calendar-vs-fiscal ambiguity handling with explicit assumptions
-- AST-based static rejection of dangerous modules
-- Secret scrubbing in logs and subprocess environments
-
-### 🔭 Not Implemented (future work)
-- Container-level isolation (Docker / gVisor)
-- DuckDB / Polars backends for datasets beyond ~5M rows
-- Semantic verification of whether the question matches business intent
-
----
-
-## 14. Repository Structure
-
-```text
-HNX26PSI08/
-├── app.py                      # Streamlit executive dashboard
+verifyai/
+├── app.py                      # Modern Streamlit executive dashboard
 ├── core.py                     # Pipeline orchestrator
 ├── requirements.txt            # Python dependencies
 ├── .env.example                # Sample environment configuration
-├── README.md                   # This file
+├── .gitignore                  # Git ignore rules
+├── README.md                   # Complete documentation
 │
 ├── data/
-│   ├── uploads/                # User-uploaded datasets
-│   └── demo/                   # Demo datasets and generator script
+│   ├── uploads/                # User uploaded datasets
+│   └── demo/                   # Realistic demo business datasets & generator
 │
 ├── database/
 │   ├── db.py                   # SQLite repository and connection manager
-│   ├── models.py               # Pydantic schemas / DB models
-│   └── schema.sql              # Relational schema
+│   ├── models.py               # Pydantic schemas and database models
+│   └── schema.sql              # Relational schema definition
 │
-├── profiler/                   # Deterministic profiling (no LLM)
-│   ├── schema_detector.py
-│   ├── duplicate_detector.py
-│   ├── missing_detector.py
-│   ├── date_detector.py
-│   ├── currency_detector.py
-│   ├── unit_detector.py
-│   ├── relationship_detector.py
-│   └── profiler.py
+├── profiler/
+│   ├── schema_detector.py      # Types, stats, primary key candidates
+│   ├── duplicate_detector.py   # Exact duplicate rows & aggregation advisory
+│   ├── missing_detector.py     # Null counts and percentages
+│   ├── date_detector.py        # Temporal ranges & missing month detection
+│   ├── currency_detector.py    # ISO codes and symbols ($ / ₹ / €)
+│   ├── unit_detector.py        # Physical dimensions (kg, litres, meters)
+│   ├── relationship_detector.py# Foreign keys & cross-dataset contradictions
+│   └── profiler.py             # Combined deterministic dataset profiler
 │
 ├── analyst/
 │   ├── prompts.py              # Strict verification prompts
-│   ├── planner.py              # Structured query planner
+│   ├── planner.py              # Intermediate structured query planner
 │   ├── code_generator.py       # Sandboxed Pandas code generator
 │   ├── question_parser.py      # Question understanding orchestrator
 │   └── response_parser.py      # Evidence packager and formatter
 │
 ├── verifier/
-│   ├── executor.py             # Subprocess runner
-│   ├── result_comparator.py    # Tolerance-aware deep comparator
-│   ├── sanity_checks.py        # NaN/Inf, sign, zero checks
+│   ├── executor.py             # Sandboxed subprocess runner (sys.executable)
+│   ├── result_comparator.py    # Float tolerance & deep struct comparator
+│   ├── sanity_checks.py        # Negative checks, zero checks, NaN/Inf bounds
 │   └── verifier.py             # Dual-execution verification engine
 │
 ├── traps/
-│   ├── trap_detector.py        # Months, currencies, units
-│   ├── ambiguity.py            # Calendar vs fiscal assumptions
-│   ├── contradictions.py       # Cross-table conflict detector
-│   └── refusal.py              # 3-part refusal payloads
+│   ├── trap_detector.py        # Trap interceptor (months, currencies, units)
+│   ├── ambiguity.py            # Calendar vs fiscal explicit assumptions
+│   ├── contradictions.py       # Cross-table metric conflict detector
+│   └── refusal.py              # 3-part structured refusal payloads
 │
 ├── llm/
-│   └── client.py               # OpenAI abstraction + local fallback
+│   └── client.py               # OpenAI abstraction + deterministic local fallback
 │
 ├── utils/
-│   ├── file_loader.py
-│   ├── serialization.py
-│   ├── logging.py
-│   └── formatting.py
+│   ├── file_loader.py          # Resilient CSV / Excel loader
+│   ├── serialization.py        # Safe JSON serializer for Pandas / Numpy
+│   ├── logging.py              # Structured logger with secret scrubbing
+│   └── formatting.py           # Currency and number formatting
 │
 ├── tests/
-│   ├── test_profiler.py
-│   ├── test_verifier.py
-│   ├── test_traps.py
-│   ├── test_refusal.py
-│   └── adversarial_tests.py
+│   ├── test_profiler.py        # Unit tests for profiler modules
+│   ├── test_verifier.py        # Unit tests for dual-process verification
+│   ├── test_traps.py           # Unit tests for trap detector & ambiguity
+│   ├── test_refusal.py         # Unit tests for structured refusal payloads
+│   └── adversarial_tests.py    # 20 rigorous end-to-end adversarial scenarios
 │
 └── docs/
-    ├── architecture.md         # In-depth architecture and diagrams
-    ├── demo.md                 # 5-minute demo script
-    └── judge_questions.md      # Known weaknesses and FAQs
+    ├── architecture.md         # In-depth architectural blueprint & diagrams
+    ├── demo.md                 # 5-minute hackathon judge demo script
+    └── judge_questions.md      # Analysis of 10 weaknesses & judge FAQs
 ```
 
 ---
 
-## 15. Security & Sandboxing
+## 🚀 Quick Start Guide
 
-- **Subprocess isolation:** Generated code never runs in the main application process.
-- **Environment scrubbing:** API keys, tokens, and credentials are removed before launching subprocesses.
-- **AST blacklisting:** Code importing forbidden modules (`socket`, `urllib`, `requests`) or calling destructive functions (`shutil.rmtree`) is rejected before execution.
-- **Execution timeout:** Subprocesses are terminated after 10 seconds.
+### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/your-username/verifyai.git
+cd verifyai
+
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment (Optional)
+```bash
+cp .env.example .env
+```
+*Note: If `OPENAI_API_KEY` is omitted, VerifyAI automatically runs in high-precision Local Deterministic Engine Mode.*
+
+### 3. Generate Demo Datasets
+```bash
+python data/demo/create_demo_data.py
+```
+
+### 4. Run the Streamlit Application
+```bash
+streamlit run app.py
+```
+Open your browser at `http://localhost:8501`.
 
 ---
 
-## 16. Limitations & Responsible Disclosure
+## 🧪 Testing & Validation
 
-- **Verification scope:** The system verifies execution reproducibility, internal consistency, and data presence. It cannot guarantee the user asked the *right* business question.
-- **Sandbox strength:** Subprocess isolation suits local analytics. For production, use isolated containers (Docker / gVisor).
-- **Scale:** In-memory Pandas is suited to datasets up to roughly 5 million rows; beyond that, DuckDB or Polars is recommended.
-- **Heuristic detection:** Currency, unit, and date detection are rule-based and may miss unusual formats.
+VerifyAI includes a comprehensive test suite including **20 adversarial stress scenarios**:
+
+```bash
+# Run all unit and adversarial tests
+python -m unittest discover tests
+```
+
+### 20 Adversarial Test Scenarios Covered
+| # | Scenario | Query | Expected Verdict |
+|---|---|---|---|
+| 1 | Simple Total | "What is the total revenue?" | `ANSWERED` |
+| 2 | Average | "What is the average order quantity?" | `ANSWERED` |
+| 3 | Maximum | "What is the maximum revenue in a single transaction?" | `ANSWERED` |
+| 4 | Minimum | "What is the minimum unit price?" | `ANSWERED` |
+| 5 | Group-by | "Which region generated the most revenue?" | `ANSWERED` |
+| 6 | Sorting | "Sort regions by total sales volume" | `ANSWERED` |
+| 7 | Date Filter | "What was the total revenue in February?" | `ANSWERED_WITH_ASSUMPTIONS` |
+| 8 | Trend / MoM | "What was the revenue trend between January and February?" | `ANSWERED_WITH_ASSUMPTIONS` |
+| 9 | **Missing Month Trap** | "What was the total revenue in August?" | `REFUSED` |
+| 10 | **Missing Column Trap** | "What is the customer satisfaction score (CSAT)?" | `REFUSED` |
+| 11 | Duplicate Handling | "What is the total revenue?" | `ANSWERED_WITH_ASSUMPTIONS` (duplicates flagged) |
+| 12 | **Currency Mismatch** | "What is combined revenue across USD and INR?" | `REFUSED` |
+| 13 | **Unit Mismatch** | "What is combined total of kg and litres?" | `REFUSED` |
+| 14 | Ambiguous Date | "Show revenue for February" | `ANSWERED_WITH_ASSUMPTIONS` |
+| 15 | **Contradictory Sources**| Conflicting revenue tables without authoritative source | `REFUSED` |
+| 16 | Empty Filter | Filter returning zero rows | Warning / 0.0 sanity warning |
+| 17 | Nonexistent Product | Filter on non-existent product ID | Sanity warning / 0.0 |
+| 18 | Multi-Table Join | "Which product category generated the highest revenue?" | `ANSWERED` (joined on `product_id`) |
+| 19 | Multi-Step Query | "Which customer purchased the most in North America?" | `ANSWERED_WITH_ASSUMPTIONS` |
+| 20 | **Impossible Query** | "What will Google's stock price be tomorrow?" | `REFUSED` |
 
 ---
 
-## 17. License
+## 🛑 Constructive Refusal Protocol
 
-This project is open-sourced under the **MIT License**.
+When a query is refused, VerifyAI adheres to a transparent 3-part refusal payload:
+
+```text
+REFUSED
+
+Reason: August data is not present in the uploaded dataset 'sales.csv'. Available range is 2025-01-05 to 2025-11-26.
+
+Data issue: Temporal gap: Month August missing from date column 'date'.
+
+What would be needed: Provide dataset records for August to compute metrics for this period.
+```
+
+---
+
+## 🔒 Security & Sandboxing Constraints
+
+- **Subprocess Isolation**: Untrusted generated code is executed in an isolated process.
+- **Environment Scrubbing**: All API keys, secrets, tokens, and credentials are removed from the environment prior to subprocess launch.
+- **AST Token Blacklisting**: Forbidden modules (`socket`, `urllib`, `requests`, `shutil.rmtree`) trigger static rejection.
+- **Execution Timeout**: Subprocesses terminate automatically after 10 seconds.
+
+---
+
+## ⚖️ Limitations & Responsible Disclosure
+
+- **Verification Scope**: Verifies code execution reproducibility, internal consistency, and data presence; does not guarantee that the human user asked the right business question.
+- **Subprocess Constraints**: Designed for local analytics environments. For enterprise deployments, use isolated Linux containers (Docker / gVisor).
+- **Dataset Scaling**: Current in-memory Pandas execution is optimized for datasets up to ~5 million rows. Larger datasets benefit from DuckDB or Polars.
+
+---
+
+## 📄 License
+This project is open-sourced under the MIT License.
