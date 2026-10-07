@@ -1,4 +1,4 @@
-HNX26PSI08: Proof-Carrying Data Analyst (Agentic GenAI)
+# HNX26PSI08: Proof-Carrying Data Analyst (Agentic GenAI)
 Agentic GenAI · Data Analytics · Code Generation · Verification
 
 Team Name: LogicLoom
